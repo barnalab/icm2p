@@ -12,6 +12,7 @@ bbmap
 samtools
 bamtools
 shapemapper2
+viennarna
 ```
 
 Python packages
@@ -36,16 +37,23 @@ impute
 ggrepel
 ```
 
+* Python packages rdatkit and reeffit should be installed and properly set up so that they can be called in the working environment. (see https://github.com/ribokit/RDATKit and https://github.com/ribokit/REEFFIT)
+
+* Same goes for ViennaRNA package. Its standalone programs should be set up to be called from the environment.
 
 ### Usage
 
 * The set of scripts here are used to do the following:
 1. Pre-process and align the sequencing reads (p0.sh)
 2. Make correlated mutation counts matrix (m2matrix.py)
-3. Data visualization; clustering; constraints (icm2.R)
+3. Data visualization; clustering; output constraints (icm2.R)
 4. Ensemble model fits (reeffit\_bootstrap\_run.sh)
 
-The parameters within each script were used to produce the analysis presented in the paper. The index are available under index/reference\*. The raw sequencing data can be downloaded from GEO under accession code GSE155656.
+* wrapper.sh and reeffit\_bootstrap\_run.sh contain slurm job execution commands
+
+* bonus\_combined.dot is the set of 500 suboptimals sampled by RNAsubopt used as input to REEFFIT exactly for the paper.
+
+* The parameters within each script were used to produce the analysis presented in the paper. The index are available under index/reference\*. The raw sequencing data can be downloaded from GEO under accession code GSE155656.
 
 ## Reference
 
