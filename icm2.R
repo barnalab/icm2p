@@ -308,31 +308,35 @@ ver_long_imputed$col_nuc=nuc_pos[as.character(ver_long_imputed$col_nuc_pos),"nuc
 ver_long_imputed$row_pos=nuc_pos[as.character(ver_long_imputed$row_nuc_pos),"pos"]
 ver_long_imputed$col_pos=nuc_pos[as.character(ver_long_imputed$col_nuc_pos),"pos"]
 
+
 rdat_mat=matrix(NaN,nrow=nrow(nuc_pos_regb),ncol=nrow(nuc_pos_regb))
 rownames(rdat_mat)=nuc_pos_regb$nuc_pos
 colnames(rdat_mat)=nuc_pos_regb$nuc_pos
-rdat_mat[nuc_pos_used_regb,nuc_pos_regb$nuc_pos]=2^(ver_long_casted_imputed[nuc_pos_used_regb,nuc_pos_regb$nuc_pos]*2-2.1) #Tranformation based on comparison with data deposited in RMDB
+
+rdat_mat=rbind(NaN,rdat_mat)
+rownames(rdat_mat)[1]="WT"
+
+rdat_mat[c("WT",nuc_pos_used_regb),nuc_pos_regb$nuc_pos]=
+  2^(rbind(apply(ver_long_casted_imputed[wt_rows,],2,mean,na.rm=T)[nuc_pos_regb$nuc_pos],
+           ver_long_casted_imputed[nuc_pos_used_regb,nuc_pos_regb$nuc_pos])*2-2.1) #Tranformation based on comparison with data deposited in RMDB
 
 #File formatting
-rdat_mat_badqual=rep("",1+nrow(rdat_mat))
-rdat_mat_badqual[which(apply(is.nan(rdat_mat),1,all))+1]="\twarning:badQuality"
+rdat_mat_badqual=rep("",nrow(rdat_mat))
+rdat_mat_badqual[which(apply(is.nan(rdat_mat),1,all))]="\twarning:badQuality"
 
-rdat_mat_out=cbind(paste("REACTIVITY:",1:(nrow(rdat_mat)+1),sep=""),
-                   rbind(apply(ver_long_casted_imputed[wt_rows,],2,mean,na.rm=T),
-                         as.data.frame(rdat_mat)))
+rdat_mat_out=cbind(paste("REACTIVITY:",1:nrow(rdat_mat),sep=""),rdat_mat)
 
 colnames(rdat_mat_out)=c("SEQPOS",
-                         paste(subset(nuc_pos,
-                                      (pos>=regb_start)&(pos<=regb_end))$nuc_rna,
+                         paste(subset(nuc_pos,(pos>=regb_start)&(pos<=regb_end))$nuc_rna,
                                subset(nuc_pos,(pos>=regb_start)&(pos<=regb_end))$pos
                                -regb_start+1,sep=""))
 
-rdat_annot_out=data.frame(cbind(paste("ANNOTATION_DATA:",1:(nrow(rdat_mat)+1),sep=""),
-                 paste("mutation:",
-                       c("WT",
-                         paste(nuc_pos_regb$nuc_rna,nuc_pos_regb$pos-regb_start+1,
-                               nuc_pos_regb$nuc_rna_comp,sep="")),
-                       rdat_mat_badqual,sep="")))
+rdat_annot_out=data.frame(cbind(paste("ANNOTATION_DATA:",1:(nrow(rdat_mat_out)),sep=""),
+                                paste("mutation:",
+                                      c("WT",
+                                        paste(nuc_pos_regb$nuc_rna,nuc_pos_regb$pos-regb_start+1,
+                                              nuc_pos_regb$nuc_rna_comp,sep="")),
+                                      rdat_mat_badqual,sep="")))
 
 regb_seq=paste(nuc_pos_regb$nuc_rna,collapse="")
 rdat_header_out=rbind("RDAT_VERSION\t0.34",paste("NAME\t","Csde1_",regb_start,"_",regb_end,sep=""),paste("SEQUENCE\t",regb_seq,sep=""))
