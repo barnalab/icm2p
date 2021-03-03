@@ -15,13 +15,15 @@ options(stringsAsFactors=F)
 dir.create("plots",showWarnings=F)
 dir.create("tables",showWarnings=F)
 
+setwd("~/projects/010420_m2/")
+
 ref_fasta=readDNAStringSet("fasta/reference.fa")
 ref_name="Csde1_165_414"
 ref_start=165
 ref_end=414
 primer_f="TGCTTCAAGTTCAGATCAGGCAAGG"
 primer_r="AAAGGAGAGCGAGAGGAAATGATCTACC"
-data_path="./out/Csde1_165_414"
+data_path="./raw/"
 ext="raw"
 
 #Reference sequence position and nucleotide info
@@ -62,7 +64,6 @@ pos_mean_var=cbind(nuc_pos[nuc_pos_trimmed,],data.frame(col_mean=apply(ve,2,mean
                                                      row_mean=apply(ve,1,mean),
                                                      row_var=apply(ve,1,var)))
 
-#Row vs. col variances
 fig_rowvar_colvar=ggplot(pos_mean_var,aes(x=col_var,y=row_var,colour=nuc_dna))+
   theme_classic()+geom_point(shape=16,stroke=0,alpha=0.5,size=2)+
   xlab("Column variance")+ylab("Row variance")+scale_colour_iwanthue(name=NULL)
@@ -70,7 +71,6 @@ cairo_pdf("plots/rowvar_colvar.pdf",width=4,height=3)
 print(fig_rowvar_colvar)
 dev.off()
 
-#Col mean vs col variances
 fig_colmean_colvar=ggplot(pos_mean_var,aes(x=col_mean,y=col_var,colour=nuc_dna))+
   theme_classic()+geom_point(shape=16,stroke=0,alpha=0.5,size=2)+
   xlab("Column mean")+ylab("Column variance")+scale_colour_iwanthue(name=NULL)
@@ -79,7 +79,7 @@ print(fig_colmean_colvar)
 dev.off()
 
 #Filter low signal columns
-colmean_cutoff=10.5 #Based on the variane plots
+colmean_cutoff=10.5 #Based on plots
 nuc_pos_filter=subset(pos_mean_var,col_mean<colmean_cutoff)$nuc_pos
 nuc_pos$filtered=F
 nuc_pos$filtered[nuc_pos$mask]=NA
@@ -135,7 +135,6 @@ vefs_long$col_pos=nuc_pos[as.character(vefs_long$col_nuc_pos),"pos"]
 vefs_long[(vefs_long$row_pos>=(vefs_long$col_pos-4))&(vefs_long$row_pos<=(vefs_long$col_pos+4)),]$value=NA #Mask +/- 4nt around diagonal
 
 #Plot heatmap of z-scaled accessibility change matrix
-#Fig. 5d in manuscript
 hm_labelcoords=subset(nuc_pos,used&(pos%in%c(195,215,265,315,330,365,385)))$nuc_pos #axis labels
 hm_labeltexts=as.character(subset(nuc_pos,used&(pos%in%c(195,215,265,315,330,365,385)))$pos)
 fig_vefs=ggplot(vefs_long,
@@ -177,7 +176,6 @@ pos_mean_var_used=cbind(nuc_pos[nuc_pos_used,],
                                    row_var=apply(vefs_long_casted,1,var,na.rm=T)))
 
 #Correlation with "wild-type" mutants
-#Fig. 5f in manuscript
 wt_rows=head(nuc_pos_used[order(pos_mean_var_used$row_var)],10)
 wt_row_mean=apply(vef_long_casted[wt_rows,],2,mean,na.rm=T)
 pos_mean_var_used$wt_cor=apply(vef_long_casted,1,cor,wt_row_mean,use="complete",method="spearman")
@@ -198,7 +196,7 @@ mds=data.frame(x=mds[,1],y=mds[,2],z=mds[,3])
 mds=cbind(nuc_pos[nuc_pos_used,],mds)
 
 #Pick clusters; could add something auto
-cluster1=rownames(subset(mds,(x<=-3)&((-z)>=0))) #Based on x-z scatter plot
+cluster1=rownames(subset(mds,(x<=-3)&((-z)>=0))) #Based on x-z scatter
 cluster2=rownames(subset(mds,(x>=4)&((-z)<=-0.5)))
 
 mds$clusters=""
@@ -206,7 +204,6 @@ mds$clusters[rownames(mds)%in%cluster1]="Cluster 1"
 mds$clusters[rownames(mds)%in%cluster2]="Cluster 2"
 mds$clusters=factor(mds$clusters,levels=c("Cluster 1","Cluster 2",""))
 
-#Fig. 6a in manuscript
 fig_pcoa=ggplot(mds,aes(x=x,y=z))+theme_classic()+
   geom_point(aes(colour=clusters),alpha=1,size=1)+
   geom_text_repel(aes(label=clusters,colour=clusters),force=25,size=3)+
@@ -230,14 +227,13 @@ rownames(cluster_avg)=cluster_avg$col_nuc_pos
 cluster_avg=cbind(nuc_pos[nuc_pos_used,],cluster_avg[nuc_pos_used,])
 cluster_avg_regb=subset(cluster_avg,(pos>=regb_start)&(pos<=regb_end))
 
-#1D data for Csde1 5'UTR, from ATP depletion experiments
+#1D data for Csde1 5'utr
 csde1_atpd=data.frame(data.table::fread("./csde1_1d.tsv",sep="\t",header=T))
 rownames(csde1_atpd)=paste(csde1_atpd$pos,csde1_atpd$nuc,sep="")
 cluster_avg_regb$atpd=csde1_atpd[cluster_avg_regb$nuc_pos,]$mean_atp_not
 cluster_avg_regb$ivf=csde1_atpd[cluster_avg_regb$nuc_pos,]$mean_ivf
 
-#Plot comparison with 1D data
-#Fig. 6f in the manuscript
+#Plot comparison with 1d data
 cluster_avg_regb_1d_long=reshape2::melt(cluster_avg_regb[,c("pos","cluster1","cluster2","atpd","ivf")],id.vars="pos")
 cluster_avg_regb_1d_labels=as.character(c(215,235,255,290,315))
 f1=ggplot(subset(cluster_avg_regb_1d_long,variable=="cluster1"),aes(x=factor(pos),y=value))+
@@ -261,11 +257,19 @@ print(fig_atpd_clusters_acc)
 dev.off()
 
 #Output constraints for Vienna fold
-#use this as --command=$constraint_file with RNAsubopt
 cluster_avg_regb_viennacmd_cluster1=data.frame(e="E",pos=cluster_avg_regb$pos-regb_start+1,k=0,j=1,cluster1=cluster_avg_regb$cluster1)
-cluster_avg_regb_viennacmd_cluster2=data.frame(e="E",pos=cluster_avg_regb$pos-regb_start+1,k=0,j=1,cluster1=cluster_avg_regb$cluster2)
+cluster_avg_regb_viennacmd_cluster2=data.frame(e="E",pos=cluster_avg_regb$pos-regb_start+1,k=0,j=1,cluster2=cluster_avg_regb$cluster2)
 write.table(cluster_avg_regb_viennacmd_cluster1,file="tables/bonus1.tsv",sep="\t",row.names=F,col.names=F,quote=F)
 write.table(cluster_avg_regb_viennacmd_cluster2,file="tables/bonus2.tsv",sep="\t",row.names=F,col.names=F,quote=F)
+
+#For coloring
+cluster_avg_regb_vcol=subset(nuc_pos,pos>=regb_start&pos<=regb_end)
+cluster_avg_regb_vcol$cluster1=cluster_avg_regb[subset(nuc_pos,pos>=regb_start&pos<=regb_end)$nuc_pos,]$cluster1
+cluster_avg_regb_vcol$cluster2=cluster_avg_regb[subset(nuc_pos,pos>=regb_start&pos<=regb_end)$nuc_pos,]$cluster2
+cluster_avg_regb_vcol$cluster1[is.na(cluster_avg_regb_vcol$cluster1)]=0
+cluster_avg_regb_vcol$cluster2[is.na(cluster_avg_regb_vcol$cluster2)]=0
+write.table(cluster_avg_regb_vcol$cluster1,file="tables/bonus1_col.txt",row.names=F,col.names=F,quote=F)
+write.table(cluster_avg_regb_vcol$cluster2,file="tables/bonus2_col.txt",row.names=F,col.names=F,quote=F)
 
 #Output RDAT for use with REEFFIT
 nuc_pos_regb=subset(nuc_pos,(pos>=regb_start)&(pos<=regb_end))
@@ -311,15 +315,19 @@ ver_long_imputed$col_pos=nuc_pos[as.character(ver_long_imputed$col_nuc_pos),"pos
 rdat_mat=matrix(NaN,nrow=nrow(nuc_pos_regb),ncol=nrow(nuc_pos_regb))
 rownames(rdat_mat)=nuc_pos_regb$nuc_pos
 colnames(rdat_mat)=nuc_pos_regb$nuc_pos
-rdat_mat[nuc_pos_used_regb,nuc_pos_regb$nuc_pos]=2^(ver_long_casted_imputed[nuc_pos_used_regb,nuc_pos_regb$nuc_pos]*2-2.1) #Tranformation based on comparison with data deposited in RMDB
+
+rdat_mat=rbind(NaN,rdat_mat)
+rownames(rdat_mat)[1]="WT"
+
+rdat_mat[c("WT",nuc_pos_used_regb),nuc_pos_regb$nuc_pos]=
+  2^(rbind(apply(ver_long_casted_imputed[wt_rows,],2,mean,na.rm=T)[nuc_pos_regb$nuc_pos],
+  ver_long_casted_imputed[nuc_pos_used_regb,nuc_pos_regb$nuc_pos])*2-2.1) #Tranformation based on comparison with data deposited in RMDB
 
 #File formatting
-rdat_mat_badqual=rep("",1+nrow(rdat_mat))
-rdat_mat_badqual[which(apply(is.nan(rdat_mat),1,all))+1]="\twarning:badQuality"
+rdat_mat_badqual=rep("",nrow(rdat_mat))
+rdat_mat_badqual[which(apply(is.nan(rdat_mat),1,all))]="\twarning:badQuality"
 
-rdat_mat_out=cbind(paste("REACTIVITY:",1:(nrow(rdat_mat)+1),sep=""),
-                   rbind(apply(ver_long_casted_imputed[wt_rows,],2,mean,na.rm=T),
-                         as.data.frame(rdat_mat)))
+rdat_mat_out=cbind(paste("REACTIVITY:",1:nrow(rdat_mat),sep=""),rdat_mat)
 
 colnames(rdat_mat_out)=c("SEQPOS",
                          paste(subset(nuc_pos,
@@ -327,11 +335,12 @@ colnames(rdat_mat_out)=c("SEQPOS",
                                subset(nuc_pos,(pos>=regb_start)&(pos<=regb_end))$pos
                                -regb_start+1,sep=""))
 
-rdat_annot_out=data.frame(cbind(paste("ANNOTATION_DATA:",1:(nrow(rdat_mat)+1),sep=""),
+rdat_annot_out=data.frame(cbind(paste("ANNOTATION_DATA:",1:(nrow(rdat_mat_out)),sep=""),
                  paste("mutation:",
                        c("WT",
                          paste(nuc_pos_regb$nuc_rna,nuc_pos_regb$pos-regb_start+1,
-                               nuc_pos_regb$nuc_rna_comp,sep="")),
+                         #      nuc_pos_regb$nuc_rna_comp,sep="")),
+                               "X",sep="")),
                        rdat_mat_badqual,sep="")))
 
 regb_seq=paste(nuc_pos_regb$nuc_rna,collapse="")
@@ -346,8 +355,7 @@ write.table(format(rdat_mat_out,digits=4),
             file=paste("tables/Csde1_",regb_start,"_",regb_end,".reac",sep=""),
             sep="\t",row.names=F,col.names=T,quote=F,na="nan")
 
-#REEFFIT params
-#--structfile bonus_combined.dot
-#--decompose motif
-#--cstart 16 --cend 75 --expcl 3
-
+#Run Vienna RNAsubopt with:
+#RNAsubopt --command=tables/bonus1.tsv --stochBT_en=250 -N < Csde1_215_315.seq > bonus1.dot
+#RNAsubopt --command=tables/bonus2.tsv --stochBT_en=250 -N < Csde1_215_315.seq > bonus2.dot
+#cat bonus1.dot bonus2.dot > structs.dot

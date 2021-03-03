@@ -42,7 +42,7 @@ for line in args.mutParse:
         continue
     if (rstart > 50):
         continue
-    if (rend < (WTlen-50):
+    if (rend < (WTlen-50)):
         continue
     if ( (rend-rstart+1) < args.minlen):
         continue
